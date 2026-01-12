@@ -1,6 +1,7 @@
 
 #ifndef HUNTER_H
 #define HUNTER_H
+
 class Hunter {
 
 };

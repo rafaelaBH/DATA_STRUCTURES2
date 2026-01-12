@@ -1,21 +1,18 @@
 #ifndef NODE_H
 #define NODE_H
-#include "Hunter.h"
+
 #include <memory>
+#include "Hunter.h"
 
 class Node {
-    Hunter* hunter;
+    int id;
+    std::shared_ptr<Hunter> hunter;
     std::unique_ptr<Node> next;
 
-    public:
-        // constructor
-        Node(Hunter* h = nullptr, std::unique_ptr<Node> n = nullptr) : hunter(h), next(std::move(n)) {}
+public:
 
-        // getter
-        int getData() const;
-
-        // setter
-        void setData(int value);
+    Node(int id, std::shared_ptr<Hunter> h, std::unique_ptr<Node> n = nullptr) :
+        id(id), hunter(std::move(h)), next(std::move(n)) {}
 };
 
 #endif // NODE_H
