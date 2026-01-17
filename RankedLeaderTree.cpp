@@ -74,6 +74,58 @@ std::unique_ptr<LeaderNode> RankedLeaderTree::addRecursive(std::unique_ptr<Leade
 
 }
 
+std::unique_ptr<LeaderNode> RankedLeaderTree::removeRecursive(std::unique_ptr<LeaderNode> curr, int aura, int id, bool& found)
+{
+    if (!curr) return nullptr;
+    if (aura == curr->data->getTotalAura() && id == curr->data->getSquadId()) found = true;
+
+    if (aura < curr->data->getTotalAura() || (aura == curr->data->getTotalAura() &&
+        id < curr->data->getSquadId()))
+    {
+        curr->left = removeRecursive(std::move(curr->left), aura, id);
+        if (curr->left) curr->left->parent = curr.get();
+    }
+    else if (aura > curr->data->getTotalAura() || (aura == curr->data->getTotalAura() &&
+        id > curr->data->getSquadId()))
+    {
+        curr->right = removeRecursive(std::move(curr->right), aura, id);
+        if (curr->right) curr->right->parent = curr.get();
+    }
+    else
+    {
+        squadCount--;
+        if (!curr->left)
+        {
+            std::unique_ptr<LeaderNode> temp = std::move(curr->right);
+            if (temp) temp->parent = curr->parent;
+            return temp;
+        }
+        else if (!curr->right)
+        {
+            std::unique_ptr<LeaderNode> temp = std::move(curr->left);
+            if (temp) temp->parent = curr->parent;
+            return temp;
+        }
+        LeaderNode* next = curr->right.get();
+        while (next->left)
+        {
+            next = next->left.get();
+        }
+
+        Squad* tempSquad = curr->data;
+        curr->data = next->data;
+        next->data = tempSquad;
+
+        curr->right = removeRecursive(std::move(curr->right), next->data->getTotalAura(), next->data->getSquadId());
+        if (curr->right) curr->right->parent = curr.get();
+        squadCount++;
+    }
+
+    curr->update();
+    return balance(std::move(curr));
+
+}
+
 StatusType RanekdLeaderTree::addSquad(Squad* s)
 {
     try
@@ -87,9 +139,12 @@ StatusType RanekdLeaderTree::addSquad(Squad* s)
     return StatusType::SUCCESS;
 }
 
-void RanekdLeaderTree::removeSquad(int aura, int id)
+StatusType RanekdLeaderTree::removeSquad(int aura, int id)
 {
-
+    bool found = false;
+    root = removeRecursive(std::move(root), aura, id, &found);
+    if (found) return StatusType::SUCCESS;
+    return StatusType::FAILURE;
 }
 
 Squad* RanekdLeaderTree::getIthSquad(int i)
