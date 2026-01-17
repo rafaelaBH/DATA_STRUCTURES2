@@ -3,6 +3,7 @@
 
 #include "Huntech26a2.h"
 #include "RankedLeaderTree.h"
+#include "IdTree.h"
 
 Huntech::Huntech() {}
 
@@ -15,8 +16,10 @@ StatusType Huntech::add_squad(int squadId) {
 
 StatusType Huntech::remove_squad(int squadId) {
     if (squadId <= 0) return StatusType::INVALID_INPUT;
-    // int aura = need to add another ds.
-    return RankedLeaderTree::removeSquad(aura, squadId);
+    Squad* s = IdTree::findSquad(squadId);
+    if (!s) return StatusType::FAILURE;
+    IdTree::removeSquad(squadId);
+    return RankedLeaderTree::removeSquad(s->getTotalAura(), squadId);
 }
 
 StatusType Huntech::add_hunter(int hunterId,
