@@ -15,6 +15,7 @@ StatusType Huntech::add_squad(int squadId) {
 
 StatusType Huntech::remove_squad(int squadId) {
     if (squadId <= 0) return StatusType::INVALID_INPUT;
+    // int aura = need to add another ds.
     return RankedLeaderTree::removeSquad(aura, squadId);
 }
 
