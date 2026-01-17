@@ -2,13 +2,17 @@
 // However, you need to implement all public Huntech functions, which are provided below as a template.
 
 #include "Huntech26a2.h"
+#include "RankedLeaderTree.h"
 
 Huntech::Huntech() {}
 
 Huntech::~Huntech() {}
 
 StatusType Huntech::add_squad(int squadId) {
-    return StatusType::FAILURE;
+    if (squadId <= 0) return StatusType::INVALID_INPUT;
+    StatusType status = StatusType::SUCCESS;
+    RankedLeaderTree::addSquad((Squad){squadId} , status);
+    return status;
 }
 
 StatusType Huntech::remove_squad(int squadId) {

@@ -28,6 +28,70 @@ std::unique_ptr<LeaderNode> RanekdLeaderTree::rotateLeft(std::unique_ptr<LeaderN
     return newRoot;
 }
 
+std::unique_ptr<LeaderNode> RankedLeaderTree::balance(std::unique_ptr<LeaderNode> node)
+{
+    int bf = node->getBalance();
+    if (bf > 1)
+    {
+        if (node->left->getBalance() < 0)
+        {
+            node->left = rotateLeft(std::move(node->left));
+        }
+        return rotateRight(std::move(node));
+    }
+    if (bf < -1)
+    {
+        if (node->right->getBalance() > 0)
+        {
+            node->right = rotateRight(std::move(node->right));
+        }
+        return rotateLeft(std::move(node));
+    }
+    return node;
+}
+
+std::unique_ptr<LeaderNode> RankedLeaderTree::addRecursive(std::unique_ptr<LeaderNode> curr, Squad* s, LeaderNode* parent_ptr)
+{
+    if (!curr)
+    {
+        squadCounter++;
+        auto newNode = std::make_unique<LeaderNode>(s);
+        newNode->parent = parent_pt;
+        return newNode;
+    }
+
+    if (s->getTotalAura() < curr->data->getTotalAura() || (s->getTotalAura() == curr->data->getTotalAura() && 
+    s->getSquadId() < curr->data->getSquadId()))
+    {
+        curr->left = addRecursive(std::move(curr->left), s, curr.get());
+    }
+    else
+    {
+        curr->right = addRecursive(std::move(curr->right), s, curr.get());
+    }
+    curr->update();
+    return balance(std::move(curr));
+
+}
+
+StatusType RanekdLeaderTree::addSquad(Squad* s)
+{
+    try
+    {
+        root = addRecursive(std::move(root), s, nullptr);
+    }
+    catch (const std::bad_alloc&)
+    {
+        return StatusType::ALLOCATION_ERROR;
+    }
+    return StatusType::SUCCESS;
+}
+
+void RanekdLeaderTree::removeSquad(int aura, int id)
+{
+
+}
+
 Squad* RanekdLeaderTree::getIthSquad(int i)
 {
     if (i < 1 || i > squadCount || !root) return nullptr;

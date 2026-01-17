@@ -17,7 +17,9 @@ private:
 public:
     RanekdLeaderTree() : root(nullptr), squadCount(0) {}
     Squad* getIthSquad(int i);
-    void addSquad(Squad* s);
+    std::unique_ptr<LeaderNode> balance(std::unique_ptr<LeaderNode> node);
+    std::unique_ptr<LeaderNode> addRecursive(std::unique_ptr<LeaderNode> curr, Squad* s, LeaderNode* parent_ptr);
+    StatusType addSquad(Squad* s, StatusType& status);
     void removeSquad(int aura, int id);
     int getCount() const { return squadCount; }
 };
