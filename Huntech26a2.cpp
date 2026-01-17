@@ -11,6 +11,8 @@ Huntech::~Huntech() {}
 
 StatusType Huntech::add_squad(int squadId) {
     if (squadId <= 0) return StatusType::INVALID_INPUT;
+    StatusType s = IdTree::AddSquad((squad){squadId});
+    if (s != StatusType::SUCCESS) return s;
     return RankedLeaderTree::addSquad((Squad){squadId});
 }
 
