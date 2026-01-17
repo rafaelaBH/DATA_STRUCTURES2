@@ -10,13 +10,12 @@ Huntech::~Huntech() {}
 
 StatusType Huntech::add_squad(int squadId) {
     if (squadId <= 0) return StatusType::INVALID_INPUT;
-    StatusType status = StatusType::SUCCESS;
-    RankedLeaderTree::addSquad((Squad){squadId} , status);
-    return status;
+    return RankedLeaderTree::addSquad((Squad){squadId});
 }
 
 StatusType Huntech::remove_squad(int squadId) {
-    return StatusType::FAILURE;
+    if (squadId <= 0) return StatusType::INVALID_INPUT;
+    return RankedLeaderTree::removeSquad(aura, squadId);
 }
 
 StatusType Huntech::add_hunter(int hunterId,

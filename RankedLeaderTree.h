@@ -19,7 +19,7 @@ public:
     Squad* getIthSquad(int i);
     std::unique_ptr<LeaderNode> balance(std::unique_ptr<LeaderNode> node);
     std::unique_ptr<LeaderNode> addRecursive(std::unique_ptr<LeaderNode> curr, Squad* s, LeaderNode* parent_ptr);
-    StatusType addSquad(Squad* s, StatusType& status);
+    StatusType addSquad(Squad* s);
     StatusType removeSquad(int aura, int id);
     int getCount() const { return squadCount; }
 };
