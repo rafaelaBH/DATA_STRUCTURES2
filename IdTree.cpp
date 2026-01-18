@@ -146,3 +146,16 @@ StatusType IdTree::removeSquad(int id) {
     root = removeRecursive(std::move(root), id);
     return StatusType::SUCCESS;
 }
+
+void IdTree::deleteNodes(IdNode* curr)
+{
+    if (!curr) return;
+    deleteNodes(curr->left.get());
+    deleteNodes(curr->right.get());
+    delete curr->squadData;
+}
+
+void IdTree::deleteData()
+{
+    deleteNodes(root.get());
+}

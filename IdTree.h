@@ -17,4 +17,6 @@ public:
     StatusType addSquad(Squad* s);
     StatusType removeSquad(int id);
     Squad* findSquad(int id);
+    void deleteNodes(IdNode curr);
+    void deleteData();
 };
