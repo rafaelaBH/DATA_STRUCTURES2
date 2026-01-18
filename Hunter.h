@@ -17,6 +17,6 @@ public:
   NenAbility nenOffset;
 
   Hunter(int id, const NenAbility& nen, int aura, int fights) : id(id), nenAbility(nen), aura(aura),
-        parent(nullptr), squad(nullptr) fightsAtStart(fights), squadFightsAtStart(0), nenOffset(NenAbility::zero()) {}
+        parent(nullptr), squad(nullptr), fightsAtStart(fights), squadFightsAtStart(0), nenOffset(NenAbility::zero()) {}
 };
 #endif //HUNTER_H

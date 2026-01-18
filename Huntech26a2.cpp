@@ -174,7 +174,26 @@ output_t<NenAbility> Huntech::get_partial_nen_ability(int hunterId) {
 }
 
 StatusType Huntech::force_join(int forcingSquadId, int forcedSquadId) {
-    return StatusType::FAILURE;
+    if (forcedSquadId <= 0 || forcingSquadId <= 0 || forcingSquadId == forcedSquadId) return StatusType::INVALID_INPUT;
+    Squad* forcingSquad = idTree.findSquad(forcingSquadId);
+    Squad* forcedSquad = idTree.findSquad(forcedSquadId);
+    if (!forcingSquad || !forcedSquad || forcingSquad->getHunterCount() == 0 || ) return StatusType::FAILURE;
+    int forcingStats = forcingSquad->getSquadExp() + forcingSquad->getTotalAura() + forcingSquad->getNenAbility().getEffectiveNenAbility();
+    int forcedStats = forcedSquad->getSquadExp() + forcedSquad->getTotalAura() + forcedSquad->getNenAbility().getEffectiveNenAbility();
+    if (forcingStats <= forcedStats) return StatusType::FAILURE;
+
+    leaderTree.removeSquad(forcingSquad->getTotalAura(), forcingSquadId);
+    leaderTree.removeSquad(forcedSquad->getTotalAura(), forcedSquadId);
+    mergeUnion(forcingSquad, forcedSquad);
+
+    forcingSquad->addExp(forcedSquad->getSquadExp());
+    forcingSquad->addAura(forcedSquad->getTotalAura());
+    forcingSquad->updateNen(forcedSquad->getNenAbility(), true);
+    forcingSquad->addHunterCount(forcedSquad->getHunterCount());
+    idTree.removeSquad(forcedSquadId);
+    forcedSquad->markRemoved();
+    leaderTree.addSquad(forcingSquad);
+    return StatusType::SUCCESS;
 }
 
 Hunter* Huntech::findRoot(Hunter* hunter, int& totalFights)
@@ -193,4 +212,29 @@ Hunter* Huntech::findRoot(Hunter* hunter, int& totalFights)
     }
     totalFights = h->fightsAtStart + parentTotalFights;
     return root;
+}
+
+void Huntech::mergeUnion(Squad* forcingSquad, Squad* forcedSquad)
+{
+    Hunter* forcingRoot = forcingSquad->getRoot();
+    Hunter* forcedRoot = forcedSquad->getRoot();
+    int forcingNum = forcingSquad->getHunterCount();
+    int forcedNum = forcedSquad->getHunterCount();
+
+    if (forcingNum >= forcedNum)
+    {
+        forcedRoot->parent = forcingRoot;
+        forcedRoot->squadFightsAtStart = forcingSquad->getSquadExp();
+        forcedRoot->nenOffset = forcingSquad->getNenAbility();
+        forcedRoot->squad = nullptr;
+    }
+    else
+    {
+        forcingRoot->parent = forcedRoot;
+        forcingRoot->squadFightsAtStart = forcedSquad->getSquadExp();
+        forcingRoot->nenOffset = forcedSquad->getNenAbility();
+        forcedRoot->squad = forcingSquad;
+        forcingSquad->setRoot(forcedRoot);
+        forcingRoot->squad = nullptr;
+    }
 }

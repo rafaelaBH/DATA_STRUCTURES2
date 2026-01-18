@@ -23,6 +23,7 @@ private:
     RankedLeaderTree leaderTree;
     HashTable hunters;
     Hunter* findRoot(int hunterId, int* totalFights, NenAbility* totalNen);
+    void mergeUnion(Squad* forcingSquad, Squad* forcedSquad);
 
 public:
     // <DO-NOT-MODIFY> {
