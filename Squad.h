@@ -11,9 +11,10 @@ private:
     NenAbility nenAbility;
     Hunter* root;
     int hunterCount;
+    bool isRemoved;
 
 public:
-    Squad(int squadId): squadId(squadId), squadExp(0), totalAura(0), nenAbility(NenAbility::zero()), root(nullptr), hunterCount(0) {};
+    Squad(int squadId): squadId(squadId), squadExp(0), totalAura(0), nenAbility(NenAbility::zero()), root(nullptr), hunterCount(0), isRemoved(false) {};
     const int getSquadId() const { return squadId; }
     const int getSquadExp() const{ return squadExp; }
     const int getTotalAura() const{ return totalAura; }
@@ -31,6 +32,8 @@ public:
     void incrementHunterCounter() { this->hunterCounter++; }
     void addHunterCount(int count) { this->hunterCount += count; }
     void addFight() { this->totalFIghts++; }
+    void markRemoved() { isRemoved = true; }
+    bool isAlive() const { return !isRemoved; }
 };
 
 
