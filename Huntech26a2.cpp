@@ -11,17 +11,41 @@ Huntech::~Huntech() {}
 
 StatusType Huntech::add_squad(int squadId) {
     if (squadId <= 0) return StatusType::INVALID_INPUT;
-    StatusType s = IdTree::AddSquad((squad){squadId});
-    if (s != StatusType::SUCCESS) return s;
-    return RankedLeaderTree::addSquad((Squad){squadId});
+    if (idTree.findSquad(squadId) != nullptr) return StatusType::FAILURE;
+    Squad* newSquad = nullptr;
+    try
+    {
+        newSquad = new Squad(suadId);
+    }
+    catch(const std::bad_alloc&)
+    {
+        return StatusType::ALLOCATION_ERROR;
+    }
+    StatusType status = idTree.addSquad(newSquad);
+    if (res != StatusType::SUCCESS)
+    {
+        delete newSquad;
+        return res;
+    }
+    status = leaderTree.addSquad(newSquad);
+    if (res != StatusType::SUCCESS)
+    {
+        idTree.removeSquad(squadId);
+        delete newSquad;
+        return res;
+    }
+    return StatusType::SUCCESS;
 }
 
 StatusType Huntech::remove_squad(int squadId) {
     if (squadId <= 0) return StatusType::INVALID_INPUT;
     Squad* s = IdTree::findSquad(squadId);
     if (!s) return StatusType::FAILURE;
-    IdTree::removeSquad(squadId);
-    return RankedLeaderTree::removeSquad(s->getTotalAura(), squadId);
+    int aura = s->getTotalAura();
+    idTree.removeSquad(squadId);
+    leaderTree.removeSquad(aura, squadId);
+    delete s;
+    return StatusType::SUCCESS;
 }
 
 StatusType Huntech::add_hunter(int hunterId,

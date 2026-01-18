@@ -16,7 +16,7 @@ int HashTable::hashFunction(int id) const {
     return id % maxSize;
 }
 
-void rehash() {
+void HashTable::rehash() {
     primeI++;
     int formerMaxSize = maxSize;
     maxSize = primeNumbers[primeI];
@@ -24,7 +24,7 @@ void rehash() {
     for (int i = 0; i < formerMaxSize; i++){
         while (table[i] != nullptr) {
             auto current = std::move(table[i]);
-            table[i] = std::move(table[i]->next);
+            table[i] = std::move(current->next);
             int newI = current->id % maxSize;
             current->next = std::move(newTable[newI]);
             newTable[newI] = std::move(current);
@@ -50,7 +50,7 @@ std::shared_ptr<Hunter> HashTable::find(int id) const {
     return nullptr;
 }
 
-bool remove(int id) {
+bool HashTable::remove(int id) {
     auto current = table[hashFunction(id)].get();
     if (current == nullptr) return false;
     if (current->id == id) {

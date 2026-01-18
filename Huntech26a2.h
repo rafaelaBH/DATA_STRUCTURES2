@@ -13,13 +13,16 @@
 #ifndef HUNTECH26A2_H_
 #define HUNTECH26A2_H_
 #include "wet2util.h"
-
+#include "IdTree.h"
+#include "RankedLeaderTree.h"
+#include "HashTable.h"
 
 class Huntech {
 private:
-    //
-    // Here you may add anything you need to implement your Huntech class
-    //
+    IdTree idTree;
+    RankedLeaderTree leaderTree;
+    HashTable hunters;
+    Hunter* findRoot(int hunterId, int* totalFights, NenAbility* totalNen);
 
 public:
     // <DO-NOT-MODIFY> {
