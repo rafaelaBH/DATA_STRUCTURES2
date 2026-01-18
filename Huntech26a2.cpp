@@ -88,7 +88,52 @@ StatusType Huntech::add_hunter(int hunterId,
 }
 
 output_t<int> Huntech::squad_duel(int squadId1, int squadId2) {
-    return 0;
+    if (squadId1 <=0 || squadId2 <= 0 || squadId1 == squadId2) return StatusType::INVALID_INPUT;
+    Squad* squad1 = idTree.findSquad(squadId1);
+    Squad* squad2 = idTree.findSquad(squadId2);
+    if (squad1 == nullptr || squad2 == nullptr || squad1->getHunterCount() <= 0 || squad2->getHunterCount() <= 0) return StatusType::FAILURE;
+    int fightStat1 = squad1->getSquadExp() + squad1->getTotalAura();
+    int fightStat2 = squad2->getSquadExp() + squad2->getTotalAura();
+    squad1->addFight();
+    squad2->addFight();
+    leaderTree.removeSquad(squad1->getTotalAura(), squadId1);
+    leaderTree.removeSquad(squad2->getTotalAura(), squadId2);
+    result = 0;
+
+    if (fightStat1 == fightStat2)
+    {
+        if (squad1->getNenAbility() > squad2->getNenAbility())
+        {
+            squad1->addExp(3);
+            result = 2;
+        }
+        else if (squad1->getNenAbility() < squad2->getNenAbility())
+        {
+            squad2->addExp(3);
+            result = 4;
+        }
+        else
+        {
+            squad1->addExp(1);
+            squad2->addExp(1);
+            result = 0;
+        }
+    }
+    else if (fightStat1 > fightStat2)
+    {
+        squad1->addExp(3);
+        result = 1;
+    }
+    else
+    {
+        squad2->addExp(3);
+        result = 3;
+    }
+
+    leaderTree.addSquad(squad1);
+    leaderTree.addSquad(squad2);
+
+    return output_t<result>;
 }
 
 output_t<int> Huntech::get_hunter_fights_number(int hunterId) {

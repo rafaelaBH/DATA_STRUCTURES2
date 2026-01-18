@@ -6,6 +6,7 @@ class Squad
 private:
     int squadId;
     int squadExp;
+    int totalFights;
     int totalAura;
     NenAbility nenAbility;
     Hunter* root;
@@ -29,6 +30,7 @@ public:
     int getHunterCount() const { return hunterCount; }
     void incrementHunterCounter() { this->hunterCounter++; }
     void addHunterCount(int count) { this->hunterCount += count; }
+    void addFight() { this->totalFIghts++; }
 };
 
 
