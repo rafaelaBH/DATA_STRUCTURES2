@@ -54,7 +54,37 @@ StatusType Huntech::add_hunter(int hunterId,
                                int aura,
                                int fightsHad)
 {
-    return StatusType::FAILURE;
+    if (hunterId <= 0 || squadId <= 0 || !nenAbility.isValid() || aura < 0 || fightsHad < 0) return StatusType::INVALID_INPUT;
+    if (hunters.find(hunterId) != nullptr) return StatusType::FAILURE;
+    Squad* squad = IdTree.findSquad(squadId);
+    if (!squad) return StatusType::FAILURE;
+
+    Hunter* newHunter = nullptr;
+    try
+    {
+        newHunter = new Hunter(hunterId, nenType, aura, fightsHad);
+    }
+    catch (const bad_alloc&)
+    {
+        return StatusType::ALLOCATION_ERROR;
+    }
+    newHunter->squadFightsAtStart = squad->getSquadExp();
+    newHunter->nenOffset = squad->getNenAbility();
+    Hunter* root = squad->getRoot();
+    if (!root)
+    {
+        newHunter->parent = nullptr;
+        newHunter->squad = squad;
+        squad->setRoot(newHunter); 
+    }
+    else newHunter->parent = root;
+
+    leaderTree.removeSquad(squad->getTotalAura(), squad->getSquadId());
+    squad->addAura(aura);
+    squad->updateNen(nenType, true);
+    leaderTree.addSquad(squad);
+    hunters.insert(hunterId, newHunter);
+    return StatusType::SUCCESS;
 }
 
 output_t<int> Huntech::squad_duel(int squadId1, int squadId2) {
