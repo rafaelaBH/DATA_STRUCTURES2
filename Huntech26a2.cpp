@@ -5,9 +5,17 @@
 #include "RankedLeaderTree.h"
 #include "IdTree.h"
 
-Huntech::Huntech(): idTree(), leaderTree(), hunters() {}
+Huntech::Huntech(): idTree(), leaderTree(), hunters(), squadDelete(nullptr) {}
 
-Huntech::~Huntech() { idTree.deleteData(); } 
+Huntech::~Huntech() {
+    Squad* current = squadDelete;
+    while (current != nullptr)
+    {
+        Squad* next = current->nextSquadToDelete;
+        delete current;
+        current = next;
+    }
+} 
 
 StatusType Huntech::add_squad(int squadId) {
     if (squadId <= 0) return StatusType::INVALID_INPUT;
@@ -21,18 +29,20 @@ StatusType Huntech::add_squad(int squadId) {
     {
         return StatusType::ALLOCATION_ERROR;
     }
+    newSquad->nextSquadToDelete = squadDelete;
+    squadDelete = newSquad;
     StatusType status = idTree.addSquad(newSquad);
     if (status != StatusType::SUCCESS)
     {
         delete newSquad;
-        return res;
+        return status;
     }
     status = leaderTree.addSquad(newSquad);
     if (status != StatusType::SUCCESS)
     {
         idTree.removeSquad(squadId);
         delete newSquad;
-        return res;
+        return status;
     }
     return StatusType::SUCCESS;
 }
@@ -54,9 +64,9 @@ StatusType Huntech::add_hunter(int hunterId,
                                int aura,
                                int fightsHad)
 {
-    if (hunterId <= 0 || squadId <= 0 || !nenAbility.isValid() || aura < 0 || fightsHad < 0) return StatusType::INVALID_INPUT;
+    if (hunterId <= 0 || squadId <= 0 || !nenType.isValid() || aura < 0 || fightsHad < 0) return StatusType::INVALID_INPUT;
     if (hunters.find(hunterId) != nullptr) return StatusType::FAILURE;
-    Squad* squad = IdTree.findSquad(squadId);
+    Squad* squad = idTree.findSquad(squadId);
     if (!squad) return StatusType::FAILURE;
 
     Hunter* newHunter = nullptr;
@@ -82,6 +92,7 @@ StatusType Huntech::add_hunter(int hunterId,
     leaderTree.removeSquad(squad->getTotalAura(), squad->getSquadId());
     squad->addAura(aura);
     squad->updateNen(nenType, true);
+    squad->addHunterCount();
     leaderTree.addSquad(squad);
     hunters.insert(hunterId, newHunter);
     return StatusType::SUCCESS;
@@ -98,7 +109,7 @@ output_t<int> Huntech::squad_duel(int squadId1, int squadId2) {
     squad2->addFight();
     leaderTree.removeSquad(squad1->getTotalAura(), squadId1);
     leaderTree.removeSquad(squad2->getTotalAura(), squadId2);
-    result = 0;
+    int result = 0;
 
     if (fightStat1 == fightStat2)
     {
@@ -133,7 +144,7 @@ output_t<int> Huntech::squad_duel(int squadId1, int squadId2) {
     leaderTree.addSquad(squad1);
     leaderTree.addSquad(squad2);
 
-    return output_t<result>;
+    return result;
 }
 
 output_t<int> Huntech::get_hunter_fights_number(int hunterId) {
@@ -143,7 +154,7 @@ output_t<int> Huntech::get_hunter_fights_number(int hunterId) {
     int totalFights = 0;
     Hunter* root = findRoot(hunter, totalFights);
     Squad* s = root->squad;
-    return (s->getSquadExp() - totalFights + hunter->fightsAtStart); 
+    return (s->getFights() - totalFights + hunter->fightsAtStart); 
 }
 
 output_t<int> Huntech::get_squad_experience(int squadId) {
@@ -166,7 +177,7 @@ output_t<NenAbility> Huntech::get_partial_nen_ability(int hunterId) {
     if (hunter == nullptr) return StatusType::FAILURE;
 
     NenAbility total = NenAbility::zero();
-    Hunter* root = findRoot(hunterId, total);
+    Hunter* root = findRoot(hunter, total);
     Squad* squad = root->squad;
 
     if (squad == nullptr || !squad->isAlive()) return StatusType::FAILURE;
@@ -177,7 +188,7 @@ StatusType Huntech::force_join(int forcingSquadId, int forcedSquadId) {
     if (forcedSquadId <= 0 || forcingSquadId <= 0 || forcingSquadId == forcedSquadId) return StatusType::INVALID_INPUT;
     Squad* forcingSquad = idTree.findSquad(forcingSquadId);
     Squad* forcedSquad = idTree.findSquad(forcedSquadId);
-    if (!forcingSquad || !forcedSquad || forcingSquad->getHunterCount() == 0 || ) return StatusType::FAILURE;
+    if (!forcingSquad || !forcedSquad || forcingSquad->getHunterCount() == 0) return StatusType::FAILURE;
     int forcingStats = forcingSquad->getSquadExp() + forcingSquad->getTotalAura() + forcingSquad->getNenAbility().getEffectiveNenAbility();
     int forcedStats = forcedSquad->getSquadExp() + forcedSquad->getTotalAura() + forcedSquad->getNenAbility().getEffectiveNenAbility();
     if (forcingStats <= forcedStats) return StatusType::FAILURE;
@@ -207,10 +218,29 @@ Hunter* Huntech::findRoot(Hunter* hunter, int& totalFights)
     Hunter* root = findRoot(hunter->parent, parentTotalFights);
     if (hunter->parent != root)
     {
-        h->squadFightsAtStart += parentTotalFights;
-        h->parent = root;
+        hunter->squadFightsAtStart += parentTotalFights;
+        hunter->parent = root;
     }
-    totalFights = h->fightsAtStart + parentTotalFights;
+    totalFights = hunter->squadFightsAtStart + parentTotalFights;
+    return root;
+}
+
+Hunter* Huntech::findRoot(Hunter* hunter, NenAbility& totalNenOffset)
+{
+    if (hunter->parent == nullptr || hunter->parent == hunter)
+    {
+        totalNenOffset = NenAbility::zero();
+        return hunter;
+    }
+
+    NenAbility parentTotalNen = NenAbility::zero();
+    Hunter* root = findRoot(hunter->parent, parentTotalNen);
+    if (hunter->parent != root)
+    {
+        hunter->nenOffset += parentTotalNen;
+        hunter->parent = root;
+    }
+    totalNenOffset = hunter->nenOffset + parentTotalNen;
     return root;
 }
 

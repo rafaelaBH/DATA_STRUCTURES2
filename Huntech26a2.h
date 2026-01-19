@@ -22,7 +22,9 @@ private:
     IdTree idTree;
     RankedLeaderTree leaderTree;
     HashTable hunters;
+    Squad* squadDelete;
     Hunter* findRoot(int hunterId, int* totalFights, NenAbility* totalNen);
+    Hunter* findRoot(Hunter* hunter, NenAbility& totalNenOffset);
     void mergeUnion(Squad* forcingSquad, Squad* forcedSquad);
 
 public:

@@ -14,12 +14,15 @@ private:
     bool isRemoved;
 
 public:
-    Squad(int squadId): squadId(squadId), squadExp(0), totalAura(0), nenAbility(NenAbility::zero()), root(nullptr), hunterCount(0), isRemoved(false) {};
+    Squad* nextSquadToDelete;
+    Squad(int squadId): squadId(squadId), squadExp(0), totalAura(0), nenAbility(NenAbility::zero()),
+             root(nullptr), hunterCount(0), isRemoved(false), nextSquadToDelete(nullptr) {};
     const int getSquadId() const { return squadId; }
     const int getSquadExp() const{ return squadExp; }
     const int getTotalAura() const{ return totalAura; }
     NenAbility getNenAbility() const { return nenAbility; }
     Hunter* getRoot() const { return root; }
+    int getFights() const { return totlaFights; }
     void addExp(int exp){ this->squadExp+= exp; }
     void addAura(int aura){ this->totalAura += aura; }
     void updateNen(const NenAbility& nen, bool sign)
