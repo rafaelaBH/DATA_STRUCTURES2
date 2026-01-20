@@ -17,7 +17,7 @@ public:
     HashTable();
     ~HashTable();
 
-    void insert(int key, Hunter* hunter);
+    void insert(int key, std::shared_ptr<Hunter> hunter);
     std::shared_ptr<Hunter> find(int id) const;
     bool remove(int id);
 };

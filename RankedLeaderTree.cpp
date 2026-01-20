@@ -1,4 +1,6 @@
-std::unique_ptr<LeaderNode> RanekdLeaderTree::rotateRight(std::unique_ptr<LeaderNode> root)
+#include "RankedLeaderTree.h"
+
+std::unique_ptr<LeaderNode> RankedLeaderTree::rotateRight(std::unique_ptr<LeaderNode> root)
 {
     std::unique_ptr<LeaderNode> newRoot = std::move(root->left);
     root->left = std::move(newRoot->right);
@@ -13,7 +15,7 @@ std::unique_ptr<LeaderNode> RanekdLeaderTree::rotateRight(std::unique_ptr<Leader
     return newRoot;
 }
 
-std::unique_ptr<LeaderNode> RanekdLeaderTree::rotateLeft(std::unique_ptr<LeaderNode> root)
+std::unique_ptr<LeaderNode> RankedLeaderTree::rotateLeft(std::unique_ptr<LeaderNode> root)
 {
     std::unique_ptr<LeaderNode> newRoot = std::move(root->right);
     root->right = std::move(newRoot->left);
@@ -54,9 +56,9 @@ std::unique_ptr<LeaderNode> RankedLeaderTree::addRecursive(std::unique_ptr<Leade
 {
     if (!curr)
     {
-        squadCounter++;
+        squadCount++;
         auto newNode = std::make_unique<LeaderNode>(s);
-        newNode->parent = parent_pt;
+        newNode->parent = parent_ptr;
         return newNode;
     }
 
@@ -76,24 +78,28 @@ std::unique_ptr<LeaderNode> RankedLeaderTree::addRecursive(std::unique_ptr<Leade
 
 std::unique_ptr<LeaderNode> RankedLeaderTree::removeRecursive(std::unique_ptr<LeaderNode> curr, int aura, int id, bool& found)
 {
-    if (!curr) return nullptr;
-    if (aura == curr->data->getTotalAura() && id == curr->data->getSquadId()) found = true;
+    if (!curr) return nullptr; 
 
     if (aura < curr->data->getTotalAura() || (aura == curr->data->getTotalAura() &&
         id < curr->data->getSquadId()))
     {
-        curr->left = removeRecursive(std::move(curr->left), aura, id);
+        curr->left = removeRecursive(std::move(curr->left), aura, id, found);
         if (curr->left) curr->left->parent = curr.get();
     }
     else if (aura > curr->data->getTotalAura() || (aura == curr->data->getTotalAura() &&
         id > curr->data->getSquadId()))
     {
-        curr->right = removeRecursive(std::move(curr->right), aura, id);
+        curr->right = removeRecursive(std::move(curr->right), aura, id, found);
         if (curr->right) curr->right->parent = curr.get();
     }
     else
     {
-        squadCount--;
+        if (!found)
+        {
+            squadCount--;
+            found = true;
+        }
+        
         if (!curr->left)
         {
             std::unique_ptr<LeaderNode> temp = std::move(curr->right);
@@ -111,22 +117,20 @@ std::unique_ptr<LeaderNode> RankedLeaderTree::removeRecursive(std::unique_ptr<Le
         {
             next = next->left.get();
         }
+        Squad* tempSquad = next->data;
+        int nextAura = tempSquad->getTotalAura();
+        int nextId = tempSquad->getSquadId();
 
-        Squad* tempSquad = curr->data;
-        curr->data = next->data;
-        next->data = tempSquad;
-
-        curr->right = removeRecursive(std::move(curr->right), next->data->getTotalAura(), next->data->getSquadId());
+        curr->right = removeRecursive(std::move(curr->right), nextAura, nextId, found);
         if (curr->right) curr->right->parent = curr.get();
-        squadCount++;
+        curr->data = tempSquad;
     }
 
     curr->update();
     return balance(std::move(curr));
-
 }
 
-StatusType RanekdLeaderTree::addSquad(Squad* s)
+StatusType RankedLeaderTree::addSquad(Squad* s)
 {
     try
     {
@@ -139,15 +143,16 @@ StatusType RanekdLeaderTree::addSquad(Squad* s)
     return StatusType::SUCCESS;
 }
 
-StatusType RanekdLeaderTree::removeSquad(int aura, int id)
+StatusType RankedLeaderTree::removeSquad(int aura, int id)
 {
     bool found = false;
-    root = removeRecursive(std::move(root), aura, id, &found);
-    if (found) return StatusType::SUCCESS;
-    return StatusType::FAILURE;
+    root = removeRecursive(std::move(root), aura, id, found);
+    if (!found) return StatusType::FAILURE;
+    squadCount--;
+    return StatusType::SUCCESS;
 }
 
-Squad* RanekdLeaderTree::getIthSquad(int i)
+Squad* RankedLeaderTree::getIthSquad(int i)
 {
     if (i < 1 || i > squadCount || !root) return nullptr;
 

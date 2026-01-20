@@ -1,5 +1,8 @@
 #pragma once
 #include "wet2util.h"
+#include <memory>
+
+class Hunter;
 
 class Squad
 {
@@ -9,7 +12,7 @@ private:
     int totalFights;
     int totalAura;
     NenAbility nenAbility;
-    Hunter* root;
+    std::shared_ptr<Hunter> root;
     int hunterCount;
     bool isRemoved;
 
@@ -21,20 +24,20 @@ public:
     const int getSquadExp() const{ return squadExp; }
     const int getTotalAura() const{ return totalAura; }
     NenAbility getNenAbility() const { return nenAbility; }
-    Hunter* getRoot() const { return root; }
-    int getFights() const { return totlaFights; }
+    std::shared_ptr<Hunter> getRoot() const { return root; }
+    int getFights() const { return totalFights; }
     void addExp(int exp){ this->squadExp+= exp; }
     void addAura(int aura){ this->totalAura += aura; }
     void updateNen(const NenAbility& nen, bool sign)
     {
-        if (sign) this->nenAbility += ability;
-        else this->nenAbility -= ability;
+        if (sign) this->nenAbility += nen;
+        else this->nenAbility -= nen;
     }
-    void setRoot(Hunter* root) { this->root = root; }
+    void setRoot(std::shared_ptr<Hunter> root) { this->root = root; }
     int getHunterCount() const { return hunterCount; }
-    void incrementHunterCounter() { this->hunterCounter++; }
+    void incrementHunterCounter() { this->hunterCount++; }
     void addHunterCount(int count) { this->hunterCount += count; }
-    void addFight() { this->totalFIghts++; }
+    void addFight() { this->totalFights++; }
     void markRemoved() { isRemoved = true; }
     bool isAlive() const { return !isRemoved; }
 };

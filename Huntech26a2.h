@@ -23,8 +23,8 @@ private:
     RankedLeaderTree leaderTree;
     HashTable hunters;
     Squad* squadDelete;
-    Hunter* findRoot(int hunterId, int* totalFights, NenAbility* totalNen);
-    Hunter* findRoot(Hunter* hunter, NenAbility& totalNenOffset);
+    std::shared_ptr<Hunter> findRoot(std::shared_ptr<Hunter> hunter, int& totalFights);
+    std::shared_ptr<Hunter> findRoot(std::shared_ptr<Hunter> hunter, NenAbility& totalNenOffset);
     void mergeUnion(Squad* forcingSquad, Squad* forcedSquad);
 
 public:

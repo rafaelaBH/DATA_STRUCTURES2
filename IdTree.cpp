@@ -56,12 +56,12 @@ std::unique_ptr<IdNode> IdTree::addRecursive(std::unique_ptr<IdNode> curr, Squad
 {
     if (!curr)
     {
-        auto newNode = std::make_unique<IdNode>(s->squadId, s);
+        auto newNode = std::make_unique<IdNode>(s->getSquadId(), s);
         newNode->parent = parent_pt;
         return newNode;
     }
 
-    if (s->squadId < curr->squadId)
+    if (s->getSquadId() < curr->squadId)
     {
         curr->left = addRecursive(std::move(curr->left), s, curr.get());
     }

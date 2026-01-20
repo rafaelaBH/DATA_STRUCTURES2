@@ -4,6 +4,7 @@
 #include "Huntech26a2.h"
 #include "RankedLeaderTree.h"
 #include "IdTree.h"
+#include "exception"
 
 Huntech::Huntech(): idTree(), leaderTree(), hunters(), squadDelete(nullptr) {}
 
@@ -29,8 +30,6 @@ StatusType Huntech::add_squad(int squadId) {
     {
         return StatusType::ALLOCATION_ERROR;
     }
-    newSquad->nextSquadToDelete = squadDelete;
-    squadDelete = newSquad;
     StatusType status = idTree.addSquad(newSquad);
     if (status != StatusType::SUCCESS)
     {
@@ -44,16 +43,19 @@ StatusType Huntech::add_squad(int squadId) {
         delete newSquad;
         return status;
     }
+    newSquad->nextSquadToDelete = squadDelete;
+    squadDelete = newSquad;
     return StatusType::SUCCESS;
 }
 
 StatusType Huntech::remove_squad(int squadId) {
     if (squadId <= 0) return StatusType::INVALID_INPUT;
     Squad* s = idTree.findSquad(squadId);
-    if (!s) return StatusType::FAILURE;
+    if (!s || !s->isAlive()) return StatusType::FAILURE;
     int aura = s->getTotalAura();
+    StatusType status = leaderTree.removeSquad(aura, squadId);
+    if (status != StatusType::SUCCESS) return StatusType::FAILURE;
     idTree.removeSquad(squadId);
-    leaderTree.removeSquad(aura, squadId);
     s->markRemoved();
     return StatusType::SUCCESS;
 }
@@ -67,32 +69,40 @@ StatusType Huntech::add_hunter(int hunterId,
     if (hunterId <= 0 || squadId <= 0 || !nenType.isValid() || aura < 0 || fightsHad < 0) return StatusType::INVALID_INPUT;
     if (hunters.find(hunterId) != nullptr) return StatusType::FAILURE;
     Squad* squad = idTree.findSquad(squadId);
-    if (!squad) return StatusType::FAILURE;
+    if (!squad || !squad->isAlive()) return StatusType::FAILURE;
 
-    Hunter* newHunter = nullptr;
+    int oldAura = squad->getTotalAura();
+    if (leaderTree.removeSquad(oldAura, squad->getSquadId()) != StatusType::SUCCESS) return StatusType::FAILURE;
+
+    std::shared_ptr<Hunter> newHunter = nullptr;
     try
     {
-        newHunter = new Hunter(hunterId, nenType, aura, fightsHad);
+        newHunter = std::make_shared<Hunter>(hunterId, nenType, aura, fightsHad);
     }
-    catch (const bad_alloc&)
+    catch (const std::bad_alloc&)
     {
         return StatusType::ALLOCATION_ERROR;
     }
-    newHunter->squadFightsAtStart = squad->getSquadExp();
-    newHunter->nenOffset = squad->getNenAbility();
-    Hunter* root = squad->getRoot();
+
+    std::shared_ptr<Hunter> root = squad->getRoot();
     if (!root)
     {
+        newHunter->nenOffset = NenAbility::zero(); 
         newHunter->parent = nullptr;
         newHunter->squad = squad;
-        squad->setRoot(newHunter); 
+        squad->setRoot(newHunter);
+        newHunter->squadFightsAtStart = 0;
     }
-    else newHunter->parent = root;
+    else
+    {
+        newHunter->nenOffset = squad->getNenAbility();
+        newHunter->parent = root;
+        newHunter->squadFightsAtStart = squad->getFights() - root->squadFightsAtStart;
+    }
 
-    leaderTree.removeSquad(squad->getTotalAura(), squad->getSquadId());
     squad->addAura(aura);
     squad->updateNen(nenType, true);
-    squad->addHunterCount();
+    squad->incrementHunterCounter();
     leaderTree.addSquad(squad);
     hunters.insert(hunterId, newHunter);
     return StatusType::SUCCESS;
@@ -102,13 +112,14 @@ output_t<int> Huntech::squad_duel(int squadId1, int squadId2) {
     if (squadId1 <=0 || squadId2 <= 0 || squadId1 == squadId2) return StatusType::INVALID_INPUT;
     Squad* squad1 = idTree.findSquad(squadId1);
     Squad* squad2 = idTree.findSquad(squadId2);
-    if (squad1 == nullptr || squad2 == nullptr || squad1->getHunterCount() <= 0 || squad2->getHunterCount() <= 0) return StatusType::FAILURE;
-    int fightStat1 = squad1->getSquadExp() + squad1->getTotalAura();
-    int fightStat2 = squad2->getSquadExp() + squad2->getTotalAura();
+    if (squad1 == nullptr || squad2 == nullptr || squad1->getHunterCount() <= 0 || squad2->getHunterCount() <= 0
+        || !squad1->isAlive() || !squad2->isAlive()) return StatusType::FAILURE;
+    int fightStat1 = squad1->getSquadExp() + squad1->getTotalAura() + squad1->getNenAbility().getEffectiveNenAbility();
+    int fightStat2 = squad2->getSquadExp() + squad2->getTotalAura() + squad2->getNenAbility().getEffectiveNenAbility();
+    if (leaderTree.removeSquad(squad1->getTotalAura(), squadId1) != StatusType::SUCCESS) return StatusType::FAILURE;
+    if (leaderTree.removeSquad(squad2->getTotalAura(), squadId2) != StatusType::SUCCESS) return StatusType::FAILURE;
     squad1->addFight();
     squad2->addFight();
-    leaderTree.removeSquad(squad1->getTotalAura(), squadId1);
-    leaderTree.removeSquad(squad2->getTotalAura(), squadId2);
     int result = 0;
 
     if (fightStat1 == fightStat2)
@@ -141,60 +152,79 @@ output_t<int> Huntech::squad_duel(int squadId1, int squadId2) {
         result = 3;
     }
 
-    leaderTree.addSquad(squad1);
-    leaderTree.addSquad(squad2);
-
+    StatusType status1 = leaderTree.addSquad(squad1);
+    StatusType status2 = leaderTree.addSquad(squad2);
+    if (status1 != StatusType::SUCCESS || status2 != StatusType::SUCCESS) return StatusType::FAILURE;
     return result;
 }
 
 output_t<int> Huntech::get_hunter_fights_number(int hunterId) {
+    int result = 0;
     if (hunterId <= 0) return StatusType::INVALID_INPUT;
     auto hunter = hunters.find(hunterId); 
     if (!hunter) return StatusType::FAILURE;
     int totalFights = 0;
-    Hunter* root = findRoot(hunter, totalFights);
+    std::shared_ptr<Hunter> root = findRoot(hunter, totalFights);
     Squad* s = root->squad;
-    return (s->getFights() - totalFights + hunter->fightsAtStart); 
+    if (!s) return StatusType::FAILURE;
+    result = s->getFights() - totalFights + hunter->fightsAtStart;
+    return result; 
 }
 
 output_t<int> Huntech::get_squad_experience(int squadId) {
+    int exp = 0;
     if (squadId <= 0) return StatusType::INVALID_INPUT;
     Squad* squad = idTree.findSquad(squadId);
-    if (squad == nullptr) return StatusType::FAILURE;
-    return squad->getSquadExp();
+    if (squad == nullptr || !squad->isAlive()) return StatusType::FAILURE;
+    exp = squad->getSquadExp();
+    return exp;
 }
 
 output_t<int> Huntech::get_ith_collective_aura_squad(int i) {
-    if (i < 1 || leaderTree.getCount() < i) return StatusType::FAILURE;
+    int id = 0;
+    if (i < 1) return StatusType::FAILURE;
     Squad* squad = leaderTree.getIthSquad(i);
-    if (!squad) return StatusType::FAILURE;
-    return squad->getSquadId();
+    if (!squad || !squad->isAlive()) return StatusType::FAILURE;
+    id = squad->getSquadId();
+    return id;
 }
 
 output_t<NenAbility> Huntech::get_partial_nen_ability(int hunterId) {
+    NenAbility result = NenAbility::zero();
     if (hunterId <= 0) return StatusType::INVALID_INPUT;
-    Hunter* hunter = hunters.find(hunterId);
+    std::shared_ptr<Hunter> hunter = hunters.find(hunterId);
     if (hunter == nullptr) return StatusType::FAILURE;
 
     NenAbility total = NenAbility::zero();
-    Hunter* root = findRoot(hunter, total);
+    std::shared_ptr<Hunter> root = findRoot(hunter, total);
+    if (!root || !root->squad   ) return StatusType::FAILURE;
     Squad* squad = root->squad;
 
-    if (squad == nullptr || !squad->isAlive()) return StatusType::FAILURE;
-    return squad->getNenAbility() - total + hunter->nenAbility;
+    if (squad == nullptr) return StatusType::FAILURE;
+    result = squad->getNenAbility() - total;
+    return result;
 }
 
 StatusType Huntech::force_join(int forcingSquadId, int forcedSquadId) {
     if (forcedSquadId <= 0 || forcingSquadId <= 0 || forcingSquadId == forcedSquadId) return StatusType::INVALID_INPUT;
     Squad* forcingSquad = idTree.findSquad(forcingSquadId);
     Squad* forcedSquad = idTree.findSquad(forcedSquadId);
-    if (!forcingSquad || !forcedSquad || forcingSquad->getHunterCount() == 0) return StatusType::FAILURE;
-    int forcingStats = forcingSquad->getSquadExp() + forcingSquad->getTotalAura() + forcingSquad->getNenAbility().getEffectiveNenAbility();
-    int forcedStats = forcedSquad->getSquadExp() + forcedSquad->getTotalAura() + forcedSquad->getNenAbility().getEffectiveNenAbility();
-    if (forcingStats <= forcedStats) return StatusType::FAILURE;
+    if (!forcingSquad || !forcedSquad || forcingSquad->getHunterCount() == 0 || forcedSquad->getHunterCount() == 0
+        || !forcingSquad->isAlive() || !forcedSquad->isAlive()) return StatusType::FAILURE;
+    if (forcedSquad->getHunterCount() > 0)
+    {
+        int forcingStats = forcingSquad->getSquadExp() + forcingSquad->getTotalAura() + forcingSquad->getNenAbility().getEffectiveNenAbility();
+        int forcedStats = forcedSquad->getSquadExp() + forcedSquad->getTotalAura() + forcedSquad->getNenAbility().getEffectiveNenAbility();
+        if (forcingStats <= forcedStats) return StatusType::FAILURE;
+    }
 
-    leaderTree.removeSquad(forcingSquad->getTotalAura(), forcingSquadId);
-    leaderTree.removeSquad(forcedSquad->getTotalAura(), forcedSquadId);
+    std::shared_ptr<Hunter> root1 = forcingSquad->getRoot();
+    std::shared_ptr<Hunter> root2 = forcedSquad->getRoot();
+    int dummyFights = 0;
+    if (root1 && root2 && findRoot(root1, dummyFights) == findRoot(root2, dummyFights)) return StatusType::FAILURE;
+
+    if (leaderTree.removeSquad(forcingSquad->getTotalAura(), forcingSquadId) != StatusType::SUCCESS) return StatusType::FAILURE;
+    if (leaderTree.removeSquad(forcedSquad->getTotalAura(), forcedSquadId) != StatusType::SUCCESS) return StatusType::FAILURE;
     mergeUnion(forcingSquad, forcedSquad);
 
     forcingSquad->addExp(forcedSquad->getSquadExp());
@@ -207,64 +237,67 @@ StatusType Huntech::force_join(int forcingSquadId, int forcedSquadId) {
     return StatusType::SUCCESS;
 }
 
-Hunter* Huntech::findRoot(Hunter* hunter, int& totalFights)
+std::shared_ptr<Hunter> Huntech::findRoot(std::shared_ptr<Hunter> hunter, int& totalFights)
 {
-    if (hunter->parent == nullptr || hunter->parent == hunter)
+    if (hunter->parent == nullptr)
     {
-        totalFights = 0;
+        totalFights = hunter->squadFightsAtStart;
         return hunter;
     }
     int parentTotalFights = 0;
-    Hunter* root = findRoot(hunter->parent, parentTotalFights);
-    if (hunter->parent != root)
-    {
-        hunter->squadFightsAtStart += parentTotalFights;
-        hunter->parent = root;
-    }
-    totalFights = hunter->squadFightsAtStart + parentTotalFights;
+    std::shared_ptr<Hunter> root = findRoot(hunter->parent, parentTotalFights);
+    hunter->squadFightsAtStart += parentTotalFights;
+    hunter->parent = root;
+    totalFights = hunter->squadFightsAtStart;
     return root;
 }
 
-Hunter* Huntech::findRoot(Hunter* hunter, NenAbility& totalNenOffset)
+std::shared_ptr<Hunter> Huntech::findRoot(std::shared_ptr<Hunter> hunter, NenAbility& totalNenOffset)
 {
     if (hunter->parent == nullptr || hunter->parent == hunter)
     {
-        totalNenOffset = NenAbility::zero();
+        totalNenOffset = hunter->nenOffset;
         return hunter;
     }
 
     NenAbility parentTotalNen = NenAbility::zero();
-    Hunter* root = findRoot(hunter->parent, parentTotalNen);
-    if (hunter->parent != root)
-    {
-        hunter->nenOffset += parentTotalNen;
-        hunter->parent = root;
-    }
-    totalNenOffset = hunter->nenOffset + parentTotalNen;
+    std::shared_ptr<Hunter> root = findRoot(hunter->parent, parentTotalNen);
+    hunter->nenOffset = hunter->nenOffset + parentTotalNen;
+    hunter->parent = root;
+    totalNenOffset = hunter->nenOffset;
     return root;
 }
 
 void Huntech::mergeUnion(Squad* forcingSquad, Squad* forcedSquad)
 {
-    Hunter* forcingRoot = forcingSquad->getRoot();
-    Hunter* forcedRoot = forcedSquad->getRoot();
+    if (!forcingSquad || !forcedSquad) return;
+    std::shared_ptr<Hunter> forcingRoot = forcingSquad->getRoot();
+    std::shared_ptr<Hunter> forcedRoot = forcedSquad->getRoot();
+
+    if (!forcedRoot) return;
+    if (!forcingRoot)
+    {
+        forcingSquad->setRoot(forcedRoot);
+        forcedRoot->squad = forcingSquad;
+        return;
+    }
+
     int forcingNum = forcingSquad->getHunterCount();
     int forcedNum = forcedSquad->getHunterCount();
 
     if (forcingNum >= forcedNum)
     {
         forcedRoot->parent = forcingRoot;
-        forcedRoot->squadFightsAtStart = forcingSquad->getSquadExp();
-        forcedRoot->nenOffset = forcingSquad->getNenAbility();
-        forcedRoot->squad = nullptr;
+        forcedRoot->squadFightsAtStart = forcedSquad->getFights() - forcingSquad->getFights();
+        forcedRoot->nenOffset = forcedSquad->getNenAbility() - forcingSquad->getNenAbility();
+        forcingRoot->squad = forcingSquad;
     }
     else
     {
         forcingRoot->parent = forcedRoot;
-        forcingRoot->squadFightsAtStart = forcedSquad->getSquadExp();
-        forcingRoot->nenOffset = forcedSquad->getNenAbility();
-        forcedRoot->squad = forcingSquad;
+        forcingRoot->squadFightsAtStart = forcingSquad->getFights() - forcedSquad->getFights();
+        forcingRoot->nenOffset = forcingSquad->getNenAbility() - forcedSquad->getNenAbility();
         forcingSquad->setRoot(forcedRoot);
-        forcingRoot->squad = nullptr;
+        forcedRoot->squad = forcingSquad;
     }
 }
