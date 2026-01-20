@@ -81,6 +81,7 @@ StatusType Huntech::add_hunter(int hunterId,
     }
     catch (const std::bad_alloc&)
     {
+        leaderTree.addSquad(squad);
         return StatusType::ALLOCATION_ERROR;
     }
 
@@ -90,14 +91,20 @@ StatusType Huntech::add_hunter(int hunterId,
         newHunter->nenOffset = NenAbility::zero(); 
         newHunter->parent = nullptr;
         newHunter->squad = squad;
-        squad->setRoot(newHunter);
         newHunter->squadFightsAtStart = squad->getFights();
+        squad->setRoot(newHunter);
     }
     else
     {
-        newHunter->nenOffset = squad->getNenAbility() - root->nenOffset;
+        int rootAbsFights = 0;
+        root = findRoot(root, rootAbsFights);
+        NenAbility rootAbsNen = NenAbility::zero();
+        root = findRoot(root, rootAbsNen);
+        squad->setRoot(root);
         newHunter->parent = root;
-        newHunter->squadFightsAtStart = squad->getFights() - root->squadFightsAtStart;
+        newHunter->squad = squad;
+        newHunter->squadFightsAtStart = squad->getFights() - rootAbsFights;
+        newHunter->nenOffset = squad->getNenAbility() - rootAbsNen;
     }
 
     squad->addAura(aura);
@@ -133,12 +140,14 @@ output_t<int> Huntech::squad_duel(int squadId1, int squadId2) {
 
     if (fightStat1 == fightStat2)
     {
-        if (squad1->getNenAbility().getEffectiveNenAbility() > squad2->getNenAbility().getEffectiveNenAbility())
+        NenAbility nen1 = squad1->getNenAbility();
+        NenAbility nen2 = squad2->getNenAbility();
+        if (nen1 > nen2)
         {
             squad1->addExp(3);
             result = 2;
         }
-        else if (squad1->getNenAbility().getEffectiveNenAbility() < squad2->getNenAbility().getEffectiveNenAbility())
+        else if (nen2 < nen1)
         {
             squad2->addExp(3);
             result = 4;
@@ -245,35 +254,48 @@ StatusType Huntech::force_join(int forcingSquadId, int forcedSquadId) {
     return StatusType::SUCCESS;
 }
 
-std::shared_ptr<Hunter> Huntech::findRoot(std::shared_ptr<Hunter> hunter, int& totalFights)
+std::shared_ptr<Hunter> Huntech::findRoot(std::shared_ptr<Hunter> hunter, int& totalFights, NenAbility& totalNenOffset)
 {
-    if (hunter->parent == nullptr)
-    {
-        totalFights = hunter->squadFightsAtStart;
+    if (!hunter) {
+        totalFights = 0;
+        totalNenOffset = NenAbility::zero();
+        return nullptr;
+    }
+
+    if (hunter->parent == nullptr) {
+        totalFights = hunter->squadFightsAtStart; 
+        totalNenOffset = hunter->nenOffset; 
         return hunter;
     }
-    int parentTotalFights = 0;
-    std::shared_ptr<Hunter> root = findRoot(hunter->parent, parentTotalFights);
-    hunter->squadFightsAtStart += parentTotalFights;
+
+    int parentFightsAbs = 0;
+    NenAbility parentNenAbs = NenAbility::zero();
+    std::shared_ptr<Hunter> root = findRoot(hunter->parent, parentFightsAbs, parentNenAbs);
+
+    int rootFightsAbs = root->squadFightsAtStart;
+    NenAbility rootNenAbs = root->nenOffset;
+    int myFightsAbs = hunter->squadFightsAtStart + parentFightsAbs;
+    NenAbility myNenAbs = hunter->nenOffset + parentNenAbs;
+
     hunter->parent = root;
-    totalFights = hunter->squadFightsAtStart;
+    hunter->squadFightsAtStart = myFightsAbs - rootFightsAbs;
+    hunter->nenOffset = myNenAbs - rootNenAbs;
+
+    totalFights = myFightsAbs;
+    totalNenOffset = myNenAbs;
     return root;
+}
+
+std::shared_ptr<Hunter> Huntech::findRoot(std::shared_ptr<Hunter> hunter, int& totalFights)
+{
+    NenAbility zero = NenAbility::zero();
+    return findRoot(hunter, totalFights, zero);
 }
 
 std::shared_ptr<Hunter> Huntech::findRoot(std::shared_ptr<Hunter> hunter, NenAbility& totalNenOffset)
 {
-    if (hunter->parent == nullptr || hunter->parent == hunter)
-    {
-        totalNenOffset = hunter->nenOffset;
-        return hunter;
-    }
-
-    NenAbility parentTotalNen = NenAbility::zero();
-    std::shared_ptr<Hunter> root = findRoot(hunter->parent, parentTotalNen);
-    hunter->nenOffset = hunter->nenOffset + parentTotalNen;
-    hunter->parent = root;
-    totalNenOffset = hunter->nenOffset;
-    return root;
+    int zero = 0;
+    return findRoot(hunter, zero, totalNenOffset);
 }
 
 void Huntech::mergeUnion(Squad* forcingSquad, Squad* forcedSquad)
@@ -285,31 +307,43 @@ void Huntech::mergeUnion(Squad* forcingSquad, Squad* forcedSquad)
     if (!forcedRoot) return;
     if (!forcingRoot)
     {
-        forcingSquad->setRoot(forcedRoot);
+        int absFights = 0;
+        NenAbility absNen = NenAbility::zero();
+        forcedRoot = findRoot(forcedRoot, absFights);
+        forcedRoot = findRoot(forcedRoot, absNen);
         forcedRoot->squad = forcingSquad;
+        forcingSquad->setRoot(forcedRoot);
         return;
     }
-
+    int forcingAbsFights = 0, forcedAbsFights = 0;
+    NenAbility forcingAbsNen = NenAbility::zero();
+    NenAbility forcedAbsNen  = NenAbility::zero();
+    forcingRoot = findRoot(forcingRoot, forcingAbsFights);
+    forcingRoot = findRoot(forcingRoot, forcingAbsNen);
+    forcedRoot  = findRoot(forcedRoot, forcedAbsFights);
+    forcedRoot  = findRoot(forcedRoot, forcedAbsNen);
+    forcingSquad->setRoot(forcingRoot);
+    forcedSquad->setRoot(forcedRoot);
     int forcingNum = forcingSquad->getHunterCount();
     int forcedNum = forcedSquad->getHunterCount();
     int fightShift = forcingSquad->getFights() - forcedSquad->getFights();
-    NenAbility forcingHistory = forcingSquad->getNenAbility();
+    NenAbility nenShift = forcingSquad->getNenAbility();
 
     if (forcingNum >= forcedNum)
     {
         forcedRoot->parent = forcingRoot;
-        forcedRoot->squadFightsAtStart = forcedRoot->squadFightsAtStart - forcingRoot->squadFightsAtStart + fightShift;
-        forcedRoot->nenOffset = forcedRoot->nenOffset + forcingHistory - forcingRoot->nenOffset;
+        forcedRoot->squadFightsAtStart = forcedAbsFights + fightShift - forcingAbsFights;
+        forcedRoot->nenOffset = forcedAbsNen + nenShift - forcingAbsNen;
         forcingRoot->squad = forcingSquad;
     }
     else
     {
-        forcingRoot->parent = forcedRoot;
-        forcedRoot->squadFightsAtStart += fightShift;
-        forcedRoot->nenOffset += forcingHistory;
+        forcedRoot->squadFightsAtStart = forcedAbsFights + fightShift;
+        forcedRoot->nenOffset = forcedAbsNen + nenShift;
 
-        forcingRoot->squadFightsAtStart = forcingRoot->squadFightsAtStart - forcedRoot->squadFightsAtStart;
-        forcingRoot->nenOffset = forcingRoot->nenOffset - forcedRoot->nenOffset;
+        forcingRoot->parent = forcedRoot;   
+        forcingRoot->squadFightsAtStart = forcingAbsFights - forcedAbsFights - fightShift;
+        forcingRoot->nenOffset = forcingAbsNen - forcedAbsNen - nenShift;
         forcingSquad->setRoot(forcedRoot);
         forcedRoot->squad = forcingSquad;
     }

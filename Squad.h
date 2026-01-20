@@ -18,7 +18,7 @@ private:
 
 public:
     Squad* nextSquadToDelete;
-    Squad(int squadId): squadId(squadId), squadExp(0), totalAura(0), nenAbility(NenAbility::zero()),
+    Squad(int squadId): squadId(squadId), squadExp(0), totalFights(0), totalAura(0), nenAbility(NenAbility::zero()),
              root(nullptr), hunterCount(0), isRemoved(false), nextSquadToDelete(nullptr) {};
     const int getSquadId() const { return squadId; }
     const int getSquadExp() const{ return squadExp; }

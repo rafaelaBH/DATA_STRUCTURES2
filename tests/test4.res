@@ -32663,7 +32663,7 @@ getIthCollectiveAuraSquad: SUCCESS, 14901
 forceJoin: SUCCESS
 forceJoin: FAILURE
 removeSquad: SUCCESS
-getHunterFightsNumber: SUCCESS, -244493078
+getHunterFightsNumber: SUCCESS, 10
 getPartialNenAbility: FAILURE
 forceJoin: INVALID_INPUT
 addHunter: FAILURE
@@ -38504,7 +38504,7 @@ removeSquad: FAILURE
 removeSquad: SUCCESS
 removeSquad: INVALID_INPUT
 addHunter: FAILURE
-getHunterFightsNumber: SUCCESS, -488986166
+getHunterFightsNumber: SUCCESS, 10
 addHunter: FAILURE
 forceJoin: FAILURE
 removeSquad: SUCCESS

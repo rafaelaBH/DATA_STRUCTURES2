@@ -25,6 +25,7 @@ private:
     Squad* squadDelete;
     std::shared_ptr<Hunter> findRoot(std::shared_ptr<Hunter> hunter, int& totalFights);
     std::shared_ptr<Hunter> findRoot(std::shared_ptr<Hunter> hunter, NenAbility& totalNenOffset);
+    std::shared_ptr<Hunter> findRoot(std::shared_ptr<Hunter> hunter, int& totalFights, NenAbility& totalNenOffset);
     void mergeUnion(Squad* forcingSquad, Squad* forcedSquad);
 
 public:
