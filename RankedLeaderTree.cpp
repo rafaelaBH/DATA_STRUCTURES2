@@ -148,7 +148,6 @@ StatusType RankedLeaderTree::removeSquad(int aura, int id)
     bool found = false;
     root = removeRecursive(std::move(root), aura, id, found);
     if (!found) return StatusType::FAILURE;
-    squadCount--;
     return StatusType::SUCCESS;
 }
 
