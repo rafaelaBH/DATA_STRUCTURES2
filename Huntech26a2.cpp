@@ -96,15 +96,10 @@ StatusType Huntech::add_hunter(int hunterId,
     }
     else
     {
-        int rootAbsFights = 0;
-        root = findRoot(root, rootAbsFights);
-        NenAbility rootAbsNen = NenAbility::zero();
-        root = findRoot(root, rootAbsNen);
-        squad->setRoot(root);
         newHunter->parent = root;
         newHunter->squad = squad;
-        newHunter->squadFightsAtStart = squad->getFights() - rootAbsFights;
-        newHunter->nenOffset = squad->getNenAbility() - rootAbsNen;
+        newHunter->squadFightsAtStart = squad->getFights() - root->squadFightsAtStart;
+        newHunter->nenOffset = squad->getNenAbility() - root->nenOffset;
     }
 
     squad->addAura(aura);
