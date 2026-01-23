@@ -1,4 +1,4 @@
-#include "idTree.h"
+#include "IdTree.h"
 
 std::unique_ptr<IdNode> IdTree::balance(std::unique_ptr<IdNode> node)
 {

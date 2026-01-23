@@ -11,7 +11,6 @@
 //
 
 #include "Huntech26a2.h"
-#include <string>
 #include <iostream>
 
 using namespace std;

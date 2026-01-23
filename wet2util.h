@@ -13,7 +13,6 @@
 #define WET2_UTIL_H_
 
 #include <stdexcept>
-#include <string>
 #include <ostream>
 
 // StatusType
